@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="d3.v3.min.js"></script>
+  <script src="dimple.v2.0.0.min.js"></script>
+  <style>
+    h2, p{
+      text-align: center;
+    }
+  </style>
+    <script type="text/javascript">
+      function draw(data) {
+
+
+
+      /*
+        D3.js setup code
+      */
+
+          "use strict";
+          var margin = 75,
+              width = 1400 - margin,
+              height = 600 - margin;
+
+          var svg = d3.select("body")
+            .append("svg")
+              .attr("width", width + margin)
+              .attr("height", height + margin)
+              .append('g')
+              .attr('class','chart');
+
+          data.forEach(function(d) {
+                    d.height = +d.height;
+                    d.weight = +d.weight;
+                    d.avg = +d.avg;
+                    d.HR = +d.HR;
+                    d.count = +1;
+                });
+          console.log(data);
+
+          // group data by height and handedness
+          var groupedData = d3.nest().key(function(d) {
+                    // 'groupby' height
+                    return d.height;
+                }).key(function(d) {
+                    // 'groupby' handedness
+                    return d.handedness;
+                }).rollup(function(v) {
+                    return {
+                      count: d3.sum(v, function(d){
+                        return d.count;
+                      }),
+                      avg: d3.mean(v, function(d){
+                        return d.avg;
+                      })
+                    };
+                    }).entries(data); // the dataset being passed in
+          // console.log(groupedData);
+
+          // change the structure of groupedData, then the data can be drawn through dimple
+          var new_data = [];
+          for (var i in groupedData) {
+
+                for (var j in groupedData[i]) {
+                  var obj_arr = groupedData[i][j];
+                  for (var k in obj_arr)
+                  {
+                    // console.log(obj_arr[k]);
+                    if (obj_arr[k].key === "R" || obj_arr[k].key === "L" || obj_arr[k].key === "B") {
+                      var new_row = {};
+                      new_row['height'] = groupedData[i].key;
+                      new_row['handedness'] = obj_arr[k].key;
+                      var objc = obj_arr[k].values;
+                      new_row['count']= Math.sqrt(objc['count']);
+                      new_row['avg'] = objc['avg'];
+                      console.log(new_row);
+                      new_data.push(new_row);
+                    }
+
+                  }
+                }
+          }
+
+
+      /*
+        Dimple.js Chart construction code
+      */
+
+          var returnData = new_data;
+          console.log(new_data);
+          var myChart = new dimple.chart(svg, returnData);
+          console.log(returnData);
+          var x = myChart.addCategoryAxis("x", "height");
+          //scale X-axis, show height
+          x.overrideMin = 60;
+          x.overrideMax = 90;
+          x.title = "Height (Inches)";
+          var y = myChart.addMeasureAxis("y", "avg");
+          //scale Y-axis, show batting average
+          y.overrideMax = 0.400;
+          y.overrideMin = 0.000;
+          y.tickFormat=".3f"
+          y.title = "Batting Average";
+          // scale the size of bubbles, show count
+          var z = myChart.addMeasureAxis("z","count");
+          var bubble = myChart.addSeries(["handedness"], dimple.plot.bubble);
+          var line = myChart.addSeries(["handedness"], dimple.plot.line);
+          bubble.aggregate = dimple.aggregateMethod.avg;
+          line.aggregate = dimple.aggregateMethod.avg;
+          line.lineMarkers = true;
+          myChart.addLegend(100, 10, 1100, 20, "right");
+          //set animation
+          myChart.staggerDraw = true;
+          myChart.ease = "line";
+          myChart.draw(1000);
+
+          // add user interaction - view all, left-handedness, right-handedness or both-handedness
+        d3.select("#btn-all").on("click", function() {
+          //clear the plot
+          myChart.data = [];
+          myChart.draw();
+          //redraw plot
+          myChart.data = new_data;
+          myChart.draw(1000);
+        });
+        d3.select("#btn-left").on("click", function() {
+          //clear the plot
+          myChart.data = [];
+          myChart.draw();
+          returnData = [];
+          //get filtered dataset
+          returnData = dimple.filterData(new_data, "handedness", "L");
+          myChart.data = returnData;
+          //redraw plot
+          myChart.draw(1000);
+        });
+        d3.select("#btn-right").on("click", function() {
+          //clear the plot
+          myChart.data = [];
+          myChart.draw();
+          returnData = [];
+          //get filtered dataset
+          returnData = dimple.filterData(new_data, "handedness", "R");
+          myChart.data = returnData;
+          //redraw plot
+          myChart.draw(1000);
+        });
+        d3.select("#btn-both").on("click", function() {
+          //clear the plot
+          myChart.data = [];
+          myChart.draw();
+          returnData = [];
+          //get filtered dataset
+          returnData = dimple.filterData(new_data, "handedness", "B");
+          myChart.data = returnData;
+          //redraw plot
+          myChart.draw(1000);
+        });
+
+        };
+      </script>
+  </head>
+<body>
+  <!-- add title for the plot -->
+  <h2>Batting Average by Height and Handedness</h2>
+  <p>Bubble size show the count of a particular group of data. Large bubble represent large number of count.</p>
+  <br>
+  <!-- add choose button for handedness-->
+  <div id="handednessButtons" style="text-align:center;">
+        <button id='btn-all'>
+            Show-All
+        </button>
+        <button id='btn-left'>
+            Left-Handedness
+        </button>
+        <button id='btn-right'>
+            Right-Handedness
+        </button>
+        <button id='btn-both'>
+            Both-Handedness
+        </button>
+  </div>
+  <script type="text/javascript">
+
+  /*
+    Use D3 (not dimple.js) to load the TSV file
+    and pass the contents of it to the draw function
+    */
+  d3.csv("baseball_data.csv", draw);
+  </script>
+</body>
+</html>

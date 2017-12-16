@@ -1,0 +1,648 @@
+White Wine Quality Exploration by Yuan Shi
+========================================================
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, messages=FALSE)
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+# Load all of the packages that you end up using
+# in your analysis in this code chunk.
+
+# Notice that the parameter "echo" was set to FALSE for this code chunk.
+# This prevents the code from displaying in the knitted HTML output.
+# You should set echo=FALSE for all code chunks in your file.
+# Obviously only need to run once
+
+#install.packages("ggplot2")
+#install.packages("polycor")
+#install.packages("RColorBrewer", dependencies = TRUE) 
+#install.packages("dplyr")
+#install.packages("memisc")
+
+library(ggplot2)
+library(polycor)
+library(RColorBrewer)
+library(gridExtra)
+library(grid)
+library(dplyr)
+library(memisc)
+
+
+```
+
+```{r echo=FALSE, Load_the_Data}
+# Load the Data
+wq <- read.csv('wineQualityWhites.csv')
+```
+
+```{r}
+# Check out the column names
+names(wq)
+```
+
+```{r}
+# Check out the dimensions of the data frame: rows & columns
+dim(wq)
+```
+
+```{r}
+# Check out the structure of each column
+str(wq)
+```
+
+```{r}
+# Quick summary of each column that shows min, max, missing values
+summary(wq)
+```
+
+```{r}
+# Define a function to make histogram for different features.
+univ_cont <- function(feature, bwidth) {
+  ggplot(data=wq, aes_string(x = feature)) +
+  geom_histogram(binwidth =  bwidth)
+}
+```
+
+
+# Univariate Plots Section
+```{r echo=FALSE, Univariate_Plots}
+# Histogram of quality
+theme_set(theme_minimal(12))
+univ_cont("quality",1) +
+  scale_x_continuous(breaks = 1:10)
+  
+```
+
+Most wines' quality are around 6.
+
+
+```{r}
+# Histogram of fixed.acidity
+univ_cont("fixed.acidity",0.5) +
+  xlab("fixed.acidity (g/dm^3)")
+```
+
+Most wines' fixed.acidity are around 7.
+
+
+
+```{r}
+# Histogram of volatile.acidity
+plot_va1 <- univ_cont("volatile.acidity",0.1) +
+    xlab("volatile.acidity (g/dm^3)")
+
+plot_va2 <- univ_cont("volatile.acidity",0.01) +
+  scale_x_log10() +
+  xlab("volatile.acidity (g/dm^3)")
+
+grid.arrange(plot_va1, plot_va2, ncol = 2)
+```
+
+The volatile.acidity data is long tail data. I use log10 to transform the volatile.acidity data, which appears unimodal with the volatile.acidity peaking around 0.4 or so.
+
+
+```{r}
+# Histogram of citric.acid
+univ_cont("citric.acid",0.1) +
+  xlab("citric.acid (g/dm^3)")
+```
+
+A majority of wines' citric.acid are about 0.25. They are found in small quantities, which can add 'freshness' and flavor to wines. 
+
+
+```{r}
+# Histogram of residual.sugar
+# Use scale_x_continuous to remove outliers in residual.sugar
+plot_rs1 <- univ_cont("residual.sugar",0.1) +
+  scale_x_continuous(limits = c(0,25)) +
+    xlab("residual.sugar (g/dm^3)")
+
+plot_rs2 <- univ_cont("residual.sugar",0.1) +
+  scale_x_log10() +
+    xlab("residual.sugar (g/dm^3)")
+
+grid.arrange(plot_rs1, plot_rs2, ncol = 2)
+```
+
+The residual.sugar data is long tail data. I use log10 to transform the residual.sugar data, which appears bimodal with the residual.sugar peaking around 2 or so and again at 9 or so.
+
+
+```{r}
+# Histogram of chlorides
+plot_chl1 <- univ_cont("chlorides",0.01) +
+      xlab("chlorides (g/dm^3)")
+
+
+plot_chl2 <- univ_cont("chlorides",0.01) +
+  scale_x_log10() +
+      xlab("chlorides (g/dm^3)")
+
+grid.arrange(plot_chl1, plot_chl2, ncol = 2)
+```
+
+The chlorides data is long tail data. I use log10 to transform the chlorides data, which appears unimodal with the chlorides peaking around 0.07 or so.
+
+```{r}
+# Histogram of free.sulfur.dioxide
+# Use scale_x_continuous to remove outliers in free.sulfur.dioxide
+univ_cont("free.sulfur.dioxide",5) +
+  scale_x_continuous(limits = c(0,150)) +
+  xlab("chlorides (g/dm^3)")
+
+```
+
+Free.sulfur.dioxide is skewed to the left. Most wines has free.sulfur.dioxide of about 30.
+
+
+```{r}
+# Histogram of total.sulfur.dioxide
+univ_cont("total.sulfur.dioxide",10) +
+  xlab("total.sulfur.dioxide (mg/dm^3)")
+```
+
+Most wines have a total.sulfur.dioxide between 100 mg/dm^3 and 150 mg/dm^3: median 134.0 mg/dm^3 and mean 138.4 mg/dm^3.
+
+```{r}
+# Histogram of density
+univ_cont("density",0.001) +
+  scale_x_continuous(limits = c(0.985,1.005)) +
+  xlab("density (g/cm^3)")
+```
+
+Most wines have a density between 0.992 g/cm^3 and 0.995 g/cm^3: median 0.9937 g/cm^3 and mean 0.994 g/cm^3.
+
+
+```{r}
+# Histogram of pH
+univ_cont("pH",0.05)
+```
+
+Most wines have a pH between 3.1 and 3.2: median 3.180 and mean 3.188.
+
+```{r}
+# Histogram of alcohol
+univ_cont("alcohol",0.2) +
+  xlab("alcohol (% by volume)")
+```
+
+Most wines have a alcohol value between 9 and 11.
+
+```{r}
+# Create a variable represent whether the free sulfur dioxide is over 50
+wq$free.sulfur.dioxide_over50ppm <- wq$free.sulfur.dioxide - 50
+
+plot_over50 <- ggplot(aes(x=free.sulfur.dioxide_over50ppm),
+                      data=subset(wq,free.sulfur.dioxide_over50ppm>0)) +
+  geom_histogram() +
+  scale_x_continuous(limits = c(0,120)) +
+  xlab("free.sulfur.dioxide (mg/dm^3)")
+
+plot_below50 <- ggplot(aes(x=free.sulfur.dioxide_over50ppm),
+                       data=subset(wq,free.sulfur.dioxide_over50ppm<0)) +
+  geom_histogram() +
+    xlab("free.sulfur.dioxide (mg/dm^3)")
+
+grid.arrange(plot_over50, plot_below50, ncol=2)
+
+```
+
+```{r}
+ggplot(aes(x=free.sulfur.dioxide_over50ppm),
+       data=subset(wq,free.sulfur.dioxide_over50ppm>0)) +
+  geom_histogram() +
+  scale_x_log10() +
+    xlab("free.sulfur.dioxide_over50ppm (mg/dm^3)")
+
+```
+
+
+
+```{r}
+# Create a variable represent the bound sulfur dioxide
+wq$bound.sulfur.dioxide <- wq$total.sulfur.dioxide - wq$free.sulfur.dioxide
+# Histogram of bound.sulfur.dioxide
+univ_cont("bound.sulfur.dioxide",10) +
+      xlab("bound.sulfur.dioxide (mg/dm^3)")
+```
+
+
+# Univariate Analysis
+
+### What is the structure of your dataset?
+
+There are 4898 diamonds in the dataset with 13 features (X, fixed.acidity, volatile.acidity, citric.acid, residual.sugar, chlorides, free.sulfur.dioxide, total.sulfur.dioxide, density, pH, sulphates, alcohol and quality). 
+
+Other observations:
+
+### What is/are the main feature(s) of interest in your dataset?
+
+The main feature in the data set is quality. I’d like to determine which features are best for predicting the quality of wines. I suspect alcohol and some combination of the other variables can be used to build a predictive model to wine quality.
+
+### What other features in the dataset do you think will help support your investigation into your feature(s) of interest?
+
+Fixed.acidity, volatile.acidity, chlorides, total.sulfur.dioxide, density, pH and alcohol are likely contribute to the quality of wines. I think alcohol and density probably contribute most to the quality after researching information on wine quality.
+
+### Did you create any new variables from existing variables in the dataset?
+
+When free SO2 concentrations are over 50 ppm, SO2 becomes evident in the nose and taste of wine. I created a variable to show whether free sulfur dioxide is over 50ppm. Current free sulfur dioxide value minus 50 is the free sulfur dioxide over 50ppm.
+
+I want to find whether the bound sulfur dioxide has impact on wine quality, so I also created a variable for the bound sulfur dioxide of wines. Since total sulfur dioxide is the amount of free and bound forms of S02, the difference of total sulfur dioxide and free sulfur dioxide is the bound sulfur dioxide.
+
+### Of the features you investigated, were there any unusual distributions? Did you perform any operations on the data to tidy, adjust, or change the form of the data? If so, why did you do this?
+
+I log-transformed the left skewed residual.sugar distributions. The tranformed distribution for  skewed residual.sugar appears bimodal with the residual.sugar peaking around 2 gram/liter or so and again around 9 gram/liter.
+
+# Bivariate Plots Section
+```{r echo=FALSE, Bivariate_Plots}
+# create a dataframe of the correlations of dataset:
+hetcor(wq)
+```
+
+From the above table, residual.sugar, total.sulfur.dioxide and chlorides do not seem to have strong correlations with quality, but they are moderately correlated with alcohol and density, which have relatively strong correlations with quality. I want to look closer at scatter plots involving quality and some other variables like alcohol, density, residual.sugar, total.sulfur.dioxide and chlorides.
+
+
+```{r}
+wq$quality <- as.factor(wq$quality)
+# Verify my previous guess: alcohol and density are the main factors which will influence wine quailty.
+
+# Check the relationship between quality and alcohol.
+ggplot(aes(x=quality,y=alcohol),data=wq) +
+  geom_jitter(alpha= 0.1,color='orange') + 
+  ylab("alcohol (% by volume)")
+```
+
+Comparing alcohol to quality, the plot suffers from some overplotting. Most wines have a alcohol between 9 and 13.
+
+```{r}
+# Create a boxplot for quality and alcohol
+ggplot(aes(x=quality,y=alcohol),data=wq) +
+  geom_boxplot() +
+  ylab("alcohol (% by volume)")
+
+# View summary
+by(wq$alcohol,wq$quality,summary)
+```
+
+The highest quality score (9) has little alcohol variance.
+
+```{r}
+# Conditional average alcohol
+wq.quality_by_alcohol <- wq %>%
+                        group_by(quality) %>%
+                        summarise(alcohol_mean = mean(alcohol),
+                                  alcohol_median = median(alcohol),
+                                  n = n()) %>%
+                        arrange(quality)
+ggplot(aes(x=quality,y=alcohol_mean,group = 1),
+       data=wq.quality_by_alcohol) +
+  geom_line() +
+  ylab("alcohol_mean (% by volume)")
+```
+
+For quality greater than 5, when the quality score is high, the value of alcohol is also high. For quality less than 5, the relationship is the opposite.
+
+
+```{r}
+# Check the relationship between quality and density.
+ggplot(aes(x=quality,y=density),data=wq) +
+  geom_jitter(alpha= 0.1,color='blue') + 
+  ylim(0.985,1.005) +
+  ylab("density (g/cm^3)")
+
+```
+
+Comparing density to quality, the plot suffers from some overplotting. Most wines have a density between 0.99 and 1.00.
+
+```{r}
+# Create a boxplot for quality and density
+ggplot(aes(x=quality,y=density),data=wq) +
+  geom_boxplot() +
+  ylim(0.985,1.005) +
+  ylab("density (g/cm^3)")
+
+# View summary
+by(wq$density,wq$quality,summary)
+```
+
+The highest quality score (9) has little density variance.
+
+```{r}
+# Conditional average density
+wq.quality_by_density <- wq %>%
+                        group_by(quality) %>%
+                        summarise(density_mean = mean(density),
+                                  density_median = median(density),
+                                  n = n()) %>%
+                        arrange(quality)
+ggplot(aes(x=quality,y=density_mean,group = 1),
+       data=wq.quality_by_density) +
+  geom_line() +
+  ylab("density_mean (g/cm^3)")
+
+```
+
+For quality greater than 5, when the quality score is high, the value of density is low in general.
+
+```{r}
+# Find how much other factors will influence alcohol and density
+# Check the relationship between density and residual.sugar
+ggplot(aes(x=density,y=residual.sugar),data=wq) +
+  geom_jitter(alpha=0.1) + 
+  ylim(0,25) + 
+  xlim(0.985,1.005) +
+  xlab("density (g/cm^3)") +
+  ylab("residual.sugar (g/dm^3)") +
+  geom_smooth(method='lm')
+```
+
+As density increases, residual.sugar also increases. The relationship between density and residual.sugar appears to be linear.
+
+
+```{r}
+# Create a boxplot for density and residual.sugar
+ggplot(aes(x=density,y=residual.sugar,group=1),data=wq) +
+  geom_boxplot() + 
+  ylim(0,25) +
+  xlab("density (g/cm^3)") +
+  ylab("residual.sugar (g/dm^3)")
+
+```
+
+
+```{r}
+# Check the relationship between density and chlorides
+ggplot(aes(x=density,y=chlorides),data=wq) +
+  geom_jitter(alpha=0.1) +
+  scale_x_continuous(limits = c(0.985,1.005)) +
+  xlab("density (g/cm^3)") +
+  ylab("chlorides (g/dm^3)") +
+  geom_smooth(method='lm')
+```
+
+As density increases, chlorides also increases. The relationship between density and chlorides appears to be linear.
+
+```{r}
+# Create a boxplot for density and chlorides
+ggplot(aes(x=density,y=chlorides,group=1),data=wq) +
+  geom_boxplot() + 
+  ylim(0,0.1) +
+  xlab("density (g/cm^3)") +
+  ylab("chlorides (g/dm^3)")
+
+```
+
+```{r}
+# Check the relationship between alcohol and total.sulfur.dioxide
+ggplot(aes(x=alcohol,y=bound.sulfur.dioxide),data=wq) +
+  geom_jitter(alpha = 0.1) +
+  xlab("alcohol (% by volume)") +
+  ylab("bound.sulfur.dioxide (mg/dm^3)") +
+  geom_smooth(method='lm')
+```
+
+As alcohol increases, total.sulfur.dioxide decreases. The relationship between alcohol and bound.sulfur.dioxide appears to be linear.
+
+
+```{r}
+# Create a boxplot for alcohol and bound.sulfur.dioxide
+ggplot(aes(x=alcohol,y=bound.sulfur.dioxide,group=1),data=wq) +
+  geom_boxplot() +  
+  xlab("alcohol (% by volume)") +
+  ylab("bound.sulfur.dioxide (mg/dm^3)")
+```
+
+```{r}
+# Check the relationship between alcohol and chlorides
+ggplot(aes(x=alcohol,y=chlorides),data=wq) +
+  geom_jitter(alpha = 0.1) +
+  ylim(0.0,0.1) +
+  xlab("alcohol (% by volume)") +
+  ylab("chlorides (g/dm^3)") +
+  geom_smooth(method='lm')
+```
+
+As alcohol increases, chlorides decreases. The relationship between alcohol and chlorides appears to be linear.
+
+```{r}
+# Create a boxplot for alcohol and chlorides
+ggplot(aes(x=alcohol,y=chlorides,group=1),data=wq) +
+  geom_boxplot() +
+  ylim(0.0,0.1) +
+  xlab("alcohol (% by volume)") +
+  ylab("chlorides (g/dm^3)")
+```
+
+```{r}
+# Check the relationship between alcohol and density
+ggplot(aes(x=alcohol,y=density),data=wq) +
+  geom_jitter(alpha=0.1) +
+  scale_y_continuous(limits = c(0.985,1.005)) +
+  xlab("alcohol (% by volume)") +
+  ylab("density (g/cm^3)") +
+  geom_smooth(method='lm')
+```
+
+As alcohol increases, density decreases. The relationship between alcohol and density appears to be linear.
+
+```{r}
+# Create a boxplot for alcohol and density
+ggplot(aes(x=alcohol,y=density,group=1),data=wq) +
+  geom_boxplot() +
+  scale_y_continuous(limits = c(0.985,1.005)) +
+  xlab("alcohol (% by volume)") +
+  ylab("density (g/cm^3)")
+```
+
+# Bivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. How did the feature(s) of interest vary with other features in the dataset?
+
+Quality correlates with alcohol and density. Density correlates strongly with alcohol.
+
+In general, high quality score often accompanied with high alcolhol and low density. As alcohol inscreases, density decreases. The relationship between alcohol and density appears to be linear.
+
+The highest quality score (9) has little alcohol variance and density variance.
+
+### Did you observe any interesting relationships between the other features (not the main feature(s) of interest)?
+
+As density increases, residual.sugar also increases. The relationship between density and residual.sugar appears to be linear. The relationship between density and chlorides is similar.
+
+As alcohol increases, bound.sulfur.dioxide decreases. The relationship between alcohol and bound.sulfur.dioxide appears to be linear. The relationship between alcohol and chlorides is also similar.
+
+### What was the strongest relationship you found?
+
+The density is positively and strongly correlated with residual.sugar. The alcohol negatively correlates with bound.sulfur.dioxide and chlorides but this relationships are less strongly than density and residual.sugar. As a result, residual.sugar, bound.sulfur.dioxide and chlorides could be used in a model to predict the quality of wines.
+
+# Multivariate Plots Section
+
+```{r echo=FALSE, Multivariate_Plots}
+ggplot(aes(x=density,y=residual.sugar,colour=quality),data=wq) +
+  geom_point(alpha=0.5, size = 1, position = 'jitter') +
+  scale_color_brewer(type='div',
+                     guide = guide_legend(title='Quality',reverse = TRUE,
+                                          override.aes = list(alpha = 1, size = 2))) +
+  scale_x_continuous(limits = c(0.985,1.005)) +
+  scale_y_continuous(limits = c(0,25)) +
+  xlab("density (g/cm^3)") +
+  ylab("residual.sugar (g/dm^3)") +
+  ggtitle('Residual.sugar vs density and Quality')
+```
+
+```{r}
+ggplot(aes(x=density,y=chlorides,colour=quality),data=wq) +
+  geom_point(alpha = 0.5, size = 1, position = 'jitter') +
+  scale_color_brewer(type='div',
+                     guide = guide_legend(title='Quality',reverse = TRUE,
+                                          override.aes = list(alpha = 1, size = 2))) +
+  scale_x_continuous(limits = c(0.985,1.005)) +
+  scale_y_continuous(limits = c(0,0.1)) +
+  xlab("density (g/cm^3)") +
+  ylab("chlorides (g/dm^3)") +
+  ggtitle('Chlorides vs density and Quality')
+
+```
+
+```{r}
+ggplot(aes(x=alcohol,y=bound.sulfur.dioxide,colour=quality),data=wq) +
+  geom_point(alpha=0.5, size = 1, position = 'jitter') +
+  scale_color_brewer(type='div',
+                     guide = guide_legend(title='Quality',reverse = TRUE,
+                                          override.aes = list(alpha = 1, size = 2))) +
+  xlab("alcohol (% by volume)") +
+  ylab("bound.sulfur.dioxide (mg/dm^3)") +
+  ggtitle('Bound.sulfur.dioxide vs alcohol and Quality')
+
+```
+
+
+
+```{r}
+ggplot(aes(x=alcohol,y=chlorides,colour=quality),data=wq) +
+  geom_point(alpha=0.5, size = 1, position = 'jitter') +
+  scale_color_brewer(type='div',
+                     guide = guide_legend(title='Quality',reverse = TRUE,
+                                          override.aes = list(alpha = 1, size = 2))) +
+  scale_y_continuous(limits = c(0,0.1)) +
+  xlab("alcohol (% by volume)") +
+  ylab("chlorides (g/dm^3)") +
+  ggtitle('Chlorides vs alcohol and Quality')
+
+```
+
+```{r}
+ggplot(aes(x=alcohol,y=density,colour=quality),data=wq) +
+  geom_point(alpha=0.5, size = 1, position = 'jitter') +
+  scale_color_brewer(type='div',
+                     guide = guide_legend(title='Quality',reverse = TRUE,
+                                          override.aes = list(alpha = 1, size = 2))) +
+  scale_y_continuous(limits = c(0.985,1.005)) +
+  xlab("alcohol (% by volume)") +
+  ylab("density (g/cm^3)") +
+  ggtitle('Density vs alcohol and Quality')
+```
+
+
+
+```{r}
+qplot(x=alcohol, y=..count../sum(..count..),
+      data=wq, geom='freqpoly',
+      color=quality) +
+  xlab("alcohol (% by volume)") +
+  scale_x_continuous(lim=c(7,17),breaks=seq(7,17,1))
+```
+
+A quality score of 5 or 6 often appears at an alcohol value between 9 to 10. Quality socre of 7 or 8 often appears at an alcohol value between 12 and 13. Wines with very low quality or very hign quality are very rare.
+
+
+```{r}
+qplot(x=density, y=..count../sum(..count..),
+      data=wq, geom='freqpoly',
+      color=quality) +
+  xlab("density (g/cm^3)") +
+  scale_x_continuous(limits = c(0.985,1.005))
+```
+
+A quality score of 5 or 6 often appears at a density value between 300 to 600. Quality socre of 7 or 8 often appears at an alcohol value between 100 and 250. Wines with very low quality or very hign quality are very rare.
+
+# Multivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. Were there features that strengthened each other in terms of looking at your feature(s) of interest?
+
+High quality wines tend to have the high alcohol value and low density value. Wines with low total.sulfur.dioxide and low chlorides values are likely to get high quality. The variance across the groups seems to be about the same with Fair cut diamonds having the least variation for the middle 50% of diamonds.
+
+Holding densisty constant, wines with lower residual.sugar are almost always get lower score in quality than wines with high residual.sugar value (worst quality is 3 and best quality is 9). 
+
+### Were there any interesting or surprising interactions between features?
+
+Wines with high sugar and low salt (chlorides) tends to get high quality score. This resonates with me because I think the flavor of wines does influence wine quality. 
+
+Wines with low bound.sulfur.dioxide and high alcohol value tends to get high quality score. Although SO2 is mostly undetectable in wine, it still influence people when they judge wine quality.
+
+### OPTIONAL: Did you create any models with your dataset? Discuss the strengths and limitations of your model.
+
+------
+
+# Final Plots and Summary
+
+### Plot One
+```{r echo=FALSE, Plot_One}
+plot_rs1 <- univ_cont("residual.sugar",0.1) +
+  scale_x_continuous(limits = c(0,25)) +
+  xlab("residual.sugar (g/dm^3)")
+
+plot_rs2 <- univ_cont("residual.sugar",0.1) +
+  scale_x_log10() +
+  xlab("residual.sugar (g/dm^3)")
+
+grid.arrange(plot_rs1, plot_rs2, ncol = 2)
+```
+
+### Description One
+
+The distribution of residual.sugar appears to be bimodal on log scale, perhaps due to the demand of wines and buyers purchasing in two different ranges of sweetness. Some prefer high sweetness, while others prefer low sweetness.
+
+### Plot Two
+```{r echo=FALSE, Plot_Two}
+ggplot(aes(x=alcohol,y=density),data=wq) +
+  geom_jitter(alpha=0.1) +
+  scale_y_continuous(limits = c(0.985,1.005)) +
+  xlab("alcohol (% by volume)") +
+  ylab("density (g/cm^3)") +
+  geom_smooth(method='lm')
+```
+
+### Description Two
+
+There is a negative relationship between density and alcohol. As the alcohol increase, the density decreases. This relationship appears to be linear. That does make sense since the density of water is close to that of water depending on the percent alcohol and sugar content. This can also explain the phenomenon that high quality score always accompanied by low density and high alcohol.
+
+### Plot Three
+```{r echo=FALSE, Plot_Three}
+ggplot(aes(x=density,y=residual.sugar,colour=quality),data=wq) +
+  geom_point(alpha=0.5, size = 1, position = 'jitter') +
+  scale_color_brewer(type='div',
+                     guide = guide_legend(title='Quality',reverse = TRUE,
+                                          override.aes = list(alpha = 1, size = 2))) +
+  scale_x_continuous(limits = c(0.985,1.005)) +
+  scale_y_continuous(limits = c(0,25)) +
+  xlab("density (g/cm^3)") +
+  ylab("residual.sugar (g/dm^3)") +
+  ggtitle('Residual.sugar vs density and Quality')
+```
+
+### Description Three
+
+The plot indicates that a linear model could be constructed to predict the quality as the outcome variable and residual.sugar as the predictor variable. Holding densisty constant, wines with lower residual.sugar are almost always get lower score in quality than wines with high residual.sugar value (worst quality is 3 and best quality is 9).
+
+------
+
+# Reflection
+
+The wines data set contains information on 4898 white wines with 13 variables. I started by understanding the individual variables in the data set, and then I explored interesting questions and leads as I continued to make observations on plots. Eventually, I explored the price of wines across many variables and found a linear relationship between sweetness and quality.
+
+There was a clear trend between the alcohol and density of a wine and its quality. The relationship between alcohol and density also prove this trend. I was surprised that even though SO2 (bound.sulfur.dioxide) is mostly undetectable in wine, it still somehow influence people's judgement about wine quality.  
+
+I struggled understanding the left skrew in residual.sugar histogram. I use log10 to transform the residual.sugar value, and then I found that residual.sugar appears bimodal with value peaking around 2 or so and again at 9 or so. Then I realized that it does make sense because it is due to people's preference about wine flavor. 
+
+There are some limitations existing in the source of this data. The majority of wines are scored 5 to 7. There is a lack of very high quality and very low quality data in this dataset. If I use this dataset to make a model to predict wine quality, the result might not be accurate enough. Given that the wines date to 2009, perhaps more features or other ingredients that will influence wine quality are discovered. The factors provided in this dataset is insufficient. To investigate this data further, I would examine the relationship among other features and make a predict model. I would be interested in testing the linear model to predict current wine quality and to determine to what extent the model is accurate at predicting quality score. A more recent dataset would be better to make predictions of wine quality, and comparisons might be made between the other linear models to see if other variables may account for wine quality.

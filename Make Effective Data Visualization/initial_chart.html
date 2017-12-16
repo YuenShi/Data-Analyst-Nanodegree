@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="d3.v3.min.js"></script>
+  <script src="dimple.v2.0.0.min.js"></script>
+  <style>
+    h2 {
+      text-align: center;
+    }
+  </style>
+    <script type="text/javascript">
+      function draw(data) {
+
+      /*
+        D3.js setup code
+      */
+
+          "use strict";
+          var margin = 75,
+              width = 1400 - margin,
+              height = 600 - margin;
+
+          var svg = d3.select("body")
+            .append("svg")
+              .attr("width", width + margin)
+              .attr("height", height + margin)
+              .append('g')
+              .attr('class','chart');
+
+      /*
+        Dimple.js Chart construction code
+      */
+
+          var myChart = new dimple.chart(svg, data);
+          var x = myChart.addCategoryAxis("x", "height");
+          // scale X axis
+          x.overrideMin = 64;
+          x.overrideMax = 90;
+          x.title = "Height";
+          var y = myChart.addMeasureAxis("y", "avg");
+          // scale Y axis
+          y.overrideMax = 0.400;
+          y.overrideMin = 0.000;
+          y.tickFormat=".3f"
+          y.title = "Batting Average";
+          var z = myChart.addMeasureAxis("z", "HR");
+          // add the bubble series
+          var bubble = myChart.addSeries(["name","handedness"], dimple.plot.bubble);
+          myChart.addLegend(100, 10, 1100, 20, "right");
+          myChart.draw();
+        };
+      </script>
+  </head>
+<body>
+  <!-- Add title for the chart-->
+  <h2>Batting Average and HRs by Height and Handedness</h2>
+
+  <script type="text/javascript">
+
+  /*
+    Use D3 (not dimple.js) to load the TSV file
+    and pass the contents of it to the draw function
+    */
+  d3.csv("baseball_data.csv", draw);
+  </script>
+</body>
+</html>
